@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121. 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_PublishTargetUrl>E:\thesis\publish_data_collector</_PublishTargetUrl>
+    <History>True|2021-08-19T08:52:39.4332429Z;True|2021-08-19T14:29:22.2943787+05:45;True|2021-08-19T14:03:15.6803403+05:45;True|2021-08-19T14:00:19.1190763+05:45;True|2021-08-18T18:24:23.3494310+05:45;</History>
+  </PropertyGroup>
+</Project>

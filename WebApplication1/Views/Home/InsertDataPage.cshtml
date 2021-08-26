@@ -1,0 +1,261 @@
+﻿@model Enums._class
+@{
+    ViewData["Title"] = "InsertData";
+}
+
+<h5>Please Scribble @Model.Description (@Model.Name) inside the box.</h5>
+
+<div id="iframe">
+    <canvas id="canvas" width="224" height="224" style="background-color:white"></canvas>
+    <br />
+    <br />
+    <input class="btn btn-secondary" style="margin-top:5px;" type="submit" value="Clear Canvas & Try again" id="clearbutton" onclick="clearCanvas(canvas);">
+    <button class="btn btn-primary" style="margin-left:15px; margin-top:5px;" onclick="clickNext(canvas,@Model.classId);">
+        Next
+    </button>
+
+</div>
+<br />
+@section scripts{
+    <script type="text/javascript">
+        $(document).ready(function () {
+            initialize();
+        });
+
+        function getPosition(mouseEvent, sigCanvas) {
+            var rect = sigCanvas.getBoundingClientRect();
+            return {
+                X: mouseEvent.clientX - rect.left,
+                Y: mouseEvent.clientY - rect.top
+            };
+        }
+
+        function initialize() {
+            var sigCanvas = document.getElementById("canvas");
+            var context = sigCanvas.getContext("2d");
+            context.strokeStyle = "#000";
+            context.lineJoin = "round";
+            context.lineWidth = 20;
+
+            var background = new Image();
+            background.onload = function () {
+                context.drawImage(background, 0, 0);
+            }
+
+            // This will be defined on a TOUCH device such as iPad or Android, etc.
+            var is_touch_device = 'ontouchstart' in document.documentElement;
+
+            if (is_touch_device)
+            {
+                // create a drawer which tracks touch movements
+                var drawer = {
+                    isDrawing: false,
+                    touchstart: function (coors) {
+                        context.beginPath();
+                        context.moveTo(coors.x, coors.y);
+                        this.isDrawing = true;
+                    },
+                    touchmove: function (coors) {
+                        if (this.isDrawing) {
+                            context.lineTo(coors.x, coors.y);
+                            context.stroke();
+                        }
+                    },
+                    touchend: function (coors) {
+                        if (this.isDrawing) {
+                            this.touchmove(coors);
+                            this.isDrawing = false;
+                        }
+                    }
+                };
+
+                // create a function to pass touch events and coordinates to drawer
+                function draw(event) {
+
+                    // get the touch coordinates.  Using the first touch in case of multi-touch
+                    var coors = {
+                        x: event.targetTouches[0].pageX,
+                        y: event.targetTouches[0].pageY
+                    };
+
+                    // Now we need to get the offset of the canvas location
+                    var obj = sigCanvas;
+
+                    if (obj.offsetParent) {
+                        // Every time we find a new object, we add its offsetLeft and offsetTop to curleft and curtop.
+                        do {
+                            coors.x -= obj.offsetLeft;
+                            coors.y -= obj.offsetTop;
+                        }
+                        // The while loop can be "while (obj = obj.offsetParent)" only, which does return null
+                        // when null is passed back, but that creates a warning in some editors (i.e. VS2010).
+                        while ((obj = obj.offsetParent) != null);
+                    }
+
+                    // pass the coordinates to the appropriate handler
+                    drawer[event.type](coors);
+                }
+
+                // attach the touchstart, touchmove, touchend event listeners.
+                sigCanvas.addEventListener('touchstart', draw, true);
+                sigCanvas.addEventListener('touchmove', draw, true);
+                sigCanvas.addEventListener('touchend', draw, true);
+
+                // prevent elastic scrolling
+                sigCanvas.addEventListener('touchmove', function (event) {
+                    event.preventDefault();
+                }, true);
+            } else {
+
+                // start drawing when the mousedown event fires, and attach handlers to
+                // draw a line to wherever the mouse moves to
+                $("#canvas").mousedown(function (mouseEvent) {
+                    var position = getPosition(mouseEvent, sigCanvas);
+                    context.moveTo(position.X, position.Y);
+                    context.beginPath();
+
+                    // attach event handlers
+                    $(this).mousemove(function (mouseEvent) {
+                        drawLine(mouseEvent, sigCanvas, context);
+                    }).mouseup(function (mouseEvent) {
+                        finishDrawing(mouseEvent, sigCanvas, context);
+                    }).mouseout(function (mouseEvent) {
+                        finishDrawing(mouseEvent, sigCanvas, context);
+                    });
+                });
+
+            }
+        }
+
+        // draws a line to the x and y coordinates of the mouse event inside
+        // the specified element using the specified context
+        function drawLine(mouseEvent, sigCanvas, context) {
+            var position = getPosition(mouseEvent, sigCanvas);
+            context.lineTo(position.X, position.Y);
+            context.stroke();
+        }
+
+        // draws a line from the last coordiantes in the path to the finishing
+        // coordinates and unbind any event handlers which need to be preceded
+        // by the mouse down event
+        function finishDrawing(mouseEvent, sigCanvas, context) {
+            // draw the line to the finishing coordinates
+            drawLine(mouseEvent, sigCanvas, context);
+
+            context.closePath();
+
+            // unbind any events which could draw
+            $(sigCanvas).unbind("mousemove")
+                .unbind("mouseup")
+                .unbind("mouseout");
+        }
+
+        // Clear the canvas context using the canvas width and height
+        function clearCanvas(canvas)
+        {
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function clickNext(canvas, classId)
+        {
+            var canvas = document.getElementById("canvas");
+
+            var dataURL = canvas.toDataURL();
+            resize(dataURL, 28, 28)
+                .then(res => {
+                    var _dataURL = res;
+                    removeTransparency(_dataURL,28,28)
+                        .then(res2 => {
+                            var __dataURL = res2;
+                            var blobBin = atob(__dataURL.split(',')[1]);
+                            var array = [];
+                            for (var i = 0; i < blobBin.length; i++) {
+                                array.push(blobBin.charCodeAt(i));
+                            }
+                            var blob = new Blob([new Uint8Array(array)], { type: 'image/png' });
+
+                            const file = new File([blob], "image.png", { type: blob.type });
+                            var formdata = new FormData();
+                            formdata.append(String(classId), file);
+                            $.ajax({
+                                url: "/Home/InsertData",
+                                type: "POST",
+                                data: formdata,
+                                processData: false,
+                                contentType: false,
+                            })
+                                .done(function (respond) {
+                                    location.reload();
+                                });
+                        });
+                });
+        }
+
+        function resize(dataUrl, _width, _height) {
+            return new Promise(async function (resolve, reject) {
+
+                var img = document.createElement('img');
+                img.onload = function () {
+                    var canvas = document.createElement('canvas');
+                    var ctx = canvas.getContext('2d');
+                    canvas.width = _width;
+                    canvas.height = _height;
+                    ctx.drawImage(this, 0, 0, _width, _height);
+
+                    var dataURI = canvas.toDataURL();
+                    resolve(dataURI);
+                };
+                img.src = dataUrl;
+            })
+        }
+
+        function removeTransparency(dataUrl, _width, _height) {
+            return new Promise(async function (resolve, reject) {
+
+                var img = document.createElement('img');
+                img.onload = function () {
+                    var canvas = document.createElement('canvas');
+                    var ctx = canvas.getContext('2d');
+                    
+                    canvas.width = _width;
+                    canvas.height = _height;
+
+                    //create a white canvas
+                    var canvas2 = document.createElement('canvas');
+                    var ctx2 = canvas.getContext('2d');
+                    canvas2.width = _width;
+                    canvas2.height = _height;
+                    ctx2.fillStyle = "#ffffff";
+                    ctx2.fillRect(0, 0, canvas.width, canvas.height);
+                    //first draw white all  over the place on the original.
+                    ctx.drawImage(canvas2, 0, 0, _width, _height);
+                    //then draw the image on top of it.
+                    ctx.drawImage(this, 0, 0, _width, _height);
+                    
+                    var dataURI = canvas.toDataURL();
+                    resolve(dataURI);
+                };
+                img.src = dataUrl;
+            })
+        }
+
+    </script>
+}
+<style>
+    #iframe 
+    {
+        position: relative;
+        left: 5px;
+        top: 5px;
+    }
+
+    #canvas {
+        background-color: white;
+        border: 2px solid #000000;
+        position: relative;
+        top: 5px;
+        left: 5px;
+        cursor: crosshair;
+    }
+</style>
